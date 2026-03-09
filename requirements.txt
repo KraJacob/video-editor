@@ -1,0 +1,8 @@
+PyQt6>=6.6.0
+moviepy>=1.0.3
+exifread>=3.0.0
+opencv-python>=4.9.0
+python-vlc>=3.0.18122
+hachoir>=3.2.0
+Pillow>=10.0.0
+natsort>=8.4.0

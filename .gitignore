@@ -1,0 +1,25 @@
+# Claude
+.claude/
+CLAUDE.md
+
+# Prompts
+prompts/
+
+# Virtual environment
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Generated assets
+assets/thumbnails/
+
+# Project files
+*.vap
+
+# OS
+.DS_Store
+Thumbs.db
