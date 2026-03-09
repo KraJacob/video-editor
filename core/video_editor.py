@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import re
 import subprocess
-import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -116,80 +114,32 @@ class VideoEditor:
         to request cancellation (the subprocess is then terminated).
         """
         output_path = Path(output_path)
-        duration = moviepy_clip.duration
         quality = QUALITY_MAP[options.quality]
         res = RESOLUTION_MAP.get(options.resolution)
 
-        # --- Phase 1 (0-50 %): write an intermediate file with MoviePy ----
-        tmp_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
-        tmp_path = Path(tmp_file.name)
-        tmp_file.close()
+        if progress_cb:
+            progress_cb(5)
 
-        try:
-            clip = moviepy_clip
-            if res:
-                clip = clip.resized(new_size=res)
-            clip = clip.with_fps(options.fps)
+        clip = moviepy_clip
+        if res:
+            clip = clip.resized(new_size=res)
+        clip = clip.with_fps(options.fps)
 
-            # Fast intermediate — correctness over quality
-            clip.write_videofile(
-                str(tmp_path),
-                codec="libx264",
-                preset="ultrafast",
-                audio=options.keep_audio,
-                audio_codec="aac" if options.keep_audio else None,
-                ffmpeg_params=["-crf", "18"],
-                logger=None,
-            )
+        if cancel_flag and cancel_flag[0]:
+            return
 
-            if cancel_flag and cancel_flag[0]:
-                return
-            if progress_cb:
-                progress_cb(50)
+        clip.write_videofile(
+            str(output_path),
+            codec="libx264",
+            preset=quality["preset"],
+            audio=options.keep_audio,
+            audio_codec="aac" if options.keep_audio else None,
+            ffmpeg_params=["-crf", quality["crf"], "-movflags", "+faststart"],
+            logger=None,
+        )
 
-            # --- Phase 2 (50-100 %): FFmpeg re-encode with target quality --
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", str(tmp_path),
-                "-vcodec", "libx264",
-                "-crf", quality["crf"],
-                "-preset", quality["preset"],
-                "-movflags", "+faststart",
-            ]
-            if options.keep_audio:
-                cmd += ["-acodec", "aac", "-b:a", "192k"]
-            else:
-                cmd += ["-an"]
-            cmd.append(str(output_path))
-
-            proc = subprocess.Popen(
-                cmd,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,
-            )
-            if process_cb:
-                process_cb(proc)
-
-            for line in proc.stderr:
-                if cancel_flag and cancel_flag[0]:
-                    proc.terminate()
-                    return
-                m = re.search(r"time=(\d+):(\d+):(\d+\.\d+)", line)
-                if m and progress_cb and duration:
-                    elapsed = (
-                        int(m.group(1)) * 3600
-                        + int(m.group(2)) * 60
-                        + float(m.group(3))
-                    )
-                    pct = 50 + int(50 * min(elapsed / duration, 1.0))
-                    progress_cb(pct)
-
-            proc.wait()
-            if proc.returncode not in (0, None) and not (cancel_flag and cancel_flag[0]):
-                raise RuntimeError(f"FFmpeg exited with code {proc.returncode}")
-
-        finally:
-            tmp_path.unlink(missing_ok=True)
+        if progress_cb:
+            progress_cb(100)
 
     # ------------------------------------------------------------------
     # Preview

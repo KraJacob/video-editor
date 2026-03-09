@@ -1,4 +1,7 @@
 import sys
+import warnings
+warnings.filterwarnings("ignore", message=".*bytes wanted but.*bytes read.*")
+
 from PyQt6.QtWidgets import QApplication
 
 from ui.main_window import MainWindow

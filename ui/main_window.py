@@ -229,6 +229,9 @@ class ExportDialog(QDialog):
         if not path:
             QMessageBox.warning(self, "Chemin manquant", "Choisissez un fichier de sortie.")
             return
+        if not path.lower().endswith(".mp4"):
+            path += ".mp4"
+            self._path_edit.setText(path)
         options = ExportOptions(
             resolution=self._res_combo.currentText(),
             fps=int(self._fps_combo.currentText()),
